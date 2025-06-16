@@ -12,5 +12,5 @@ For detailed information about specific components, see **Core Components**. For
 
 The ChatRelay Bot system follows a **modular architecture** with clear separation of concerns across multiple components:
 
-![ChatRelay Bot High Level Design](hld.png)
+![ChatRelay Bot High Level Design](assets/hld.png)
 
