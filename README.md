@@ -70,3 +70,74 @@ A complete mock backend service enables local development and testing without ex
 
 
 ![ChatRelay Bot Developemnt Mode](assets/development.png)
+
+
+# Configuration(Locally)
+
+## ⚙️ Configuration Overview
+
+This document provides a comprehensive guide to configuring the **ChatRelay Bot** system, including:
+
+- Environment variables
+- Authentication tokens
+- Network settings
+- Operational parameters
+
+It covers both required and optional configuration options, their sources, validation rules, and usage throughout the system.
+
+📌 For detailed information about the data structures used to hold configuration, see **[Data Models](#)**.  
+💻 For development-specific setup procedures, refer to **[Local Setup](#)**.
+
+The ChatRelay Bot uses a hierarchical configuration system that prioritizes environment variables over .env file settings. Configuration is loaded during application startup and validated before the system begins operation.
+
+
+![ChatRelay Bot Developemnt Mode](assets/app_starting.png)
+
+## 📥 Configuration Sources
+
+The system loads configuration from two sources, in order of precedence:
+
+1. **Environment Variables** (highest priority)
+2. **`.env` File** (fallback for development)
+
+The `LoadConfig()` function performs the following steps:
+
+- First attempts to load a `.env` file using `godotenv.Load()`.
+- Then reads environment variables using `os.LookupEnv()`.
+
+> ✅ **Note**: Environment variables always **override** values from the `.env` file.
+
+
+![ChatRelay Bot Developemnt Mode](assets/env_variable.png)
+
+
+# Required Configuration Parameters
+These parameters must be set or the application will fail to start:
+
+![ChatRelay Bot Developemnt Mode](assets/required_token.png)
+
+The getRequiredEnv() helper function validates that these parameters are both present and non-empty. Missing required parameters cause LoadConfig() to return an error.
+
+![ChatRelay Bot Developemnt Mode](assets/optional_config.png)
+
+# Configuration Loading Process
+The configuration loading process follows these steps:
+
+![ChatRelay Bot Developemnt Mode](assets/optional_para.png)
+
+
+The LoadConfig() function creates helper functions getEnv() and getRequiredEnv() to standardize parameter loading with proper error handling and default value application.
+
+
+## ✅ Configuration Validation and Error Handling
+
+The system performs validation during the configuration loading process to ensure stability and correctness. Key validations include:
+
+- **Type Conversion and Validation**:
+  - **Duration Parameters**: Parsed using `time.ParseDuration()`, with fallback to default values on parse errors.
+  - **Integer Parameters**: Converted using `strconv.Atoi()` with proper error handling to prevent panics.
+  - **String Parameters**: Used directly after checking for presence and non-empty values.
+
+
+![ChatRelay Bot Developemnt Mode](assets/example_config.png)
+
