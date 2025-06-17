@@ -74,6 +74,90 @@ A complete mock backend service enables local development and testing without ex
 
 # Configuration(Locally)
 
+## 📦 Prerequisites
+
+Before setting up the local development environment, ensure you have the following installed:
+
+- **Go 1.20 or later**: Required for building and running the application.
+- **Slack Workspace**: Administrative access to create and configure a Slack App.
+- **Git**: For cloning and managing the repository.
+- **Text Editor / IDE**: For editing configuration and source files.
+
+### 🔍 Optional (for full observability setup):
+
+- **OpenTelemetry Collector**: For receiving and processing telemetry data locally.
+- **Docker**: For running observability backends like **Jaeger**, **Prometheus**, or **Grafana**.
+
+## 🛠️ Slack App Configuration
+
+### 🔧 Creating the Slack App
+
+The **ChatRelay Bot** requires a Slack App with specific permissions and **Socket Mode** enabled. Follow these steps to set it up:
+
+1. **Navigate to Slack API**:  
+   Visit [api.slack.com/apps](https://api.slack.com/apps) and click **"Create New App"**.
+
+2. **Choose Manifest Option**:  
+   Select **"From an app manifest"** for streamlined setup.
+
+3. **Apply Configuration**:  
+   Use the following app manifest (replace `YOUR_BOT_NAME` and `YOUR_URL` as needed):
+   
+   ```yaml
+   _metadata:
+     major_version: 1
+     minor_version: 1
+   display_information:
+     name: ChatRelay Bot
+     description: A Slack bot that relays messages to a backend and streams the response
+     background_color: "#2eb67d"
+   features:
+     bot_user:
+       display_name: ChatRelay
+       always_online: true
+   oauth_config:
+     scopes:
+       bot:
+         - app_mentions:read
+         - chat:write
+         - chat:write.public
+         - channels:history
+         - groups:history
+         - im:history
+         - mpim:history
+   settings:
+     event_subscriptions:
+       request_url: ""
+       bot_events:
+         - app_mention
+     interactivity:
+       is_enabled: true
+     socket_mode_enabled: true
+     org_deploy_enabled: false
+     token_rotation_enabled: false
+
+## 🔐 Token Extraction
+
+After creating the Slack App, extract the required tokens to enable API access and Socket Mode functionality:
+
+- **App-Level Token**  
+  - Navigate to **Basic Information** → **App-Level Tokens**.
+  - Click **"Generate Token and Scopes"**.
+  - Select the `connections:write` scope.
+  - Copy the token that starts with `xapp-`.
+
+- **Bot OAuth Token**  
+  - Navigate to **OAuth & Permissions** in the sidebar.
+  - Scroll down to **OAuth Tokens for Your Workspace**.
+  - Copy the token that starts with `xoxb-`.
+
+### 📁 Add the Tokens to Your `.env` File
+
+```env
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_APP_TOKEN=xapp-your-app-token
+
+
 ## ⚙️ Configuration Overview
 
 This document provides a comprehensive guide to configuring the **ChatRelay Bot** system, including:
@@ -140,4 +224,10 @@ The system performs validation during the configuration loading process to ensur
 
 
 ![ChatRelay Bot Developemnt Mode](assets/example_config.png)
+
+
+
+## 🚀 Running the System
+
+Once the prerequisites are met and the environment is configured, you can start the ChatRelay Bot locally:
 
