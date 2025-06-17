@@ -293,3 +293,20 @@ ChatRelay Tell me about Golang concurrency
 - Bot sends initial **"Thinking..."** message  
 - Message updates progressively with response chunks  
 - Final complete response is displayed  
+
+
+## Outputs with locally tested(steps):
+
+first invite the bot into slack after running mockbackend and chatrelay folder
+![ChatRelay Bot Output](assets/output1.png)
+
+
+![ChatRelay Bot Output](assets/output2.png)
+
+Terminal-1
+
+![ChatRelay Bot Output](assets/output3.png)
+
+Terminal-2
+
+![ChatRelay Bot Output](assets/output4.png)
