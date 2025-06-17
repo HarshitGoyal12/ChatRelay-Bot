@@ -1,12 +1,10 @@
-// internal/slack/client.go
-
 package slack
 
 import (
 	"context"
 	"fmt"
-	"log"      // IMPORTANT: Added for standard logger used by slack-go
-	"log/slog" // IMPORTANT: Keep this for structured application logging
+	"log"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -26,12 +24,10 @@ import (
 
 const tracerName = "chatrelay/internal/slack"
 
-// EventHandler defines the interface for handling Slack events.
 type EventHandler interface {
 	HandleAppMention(ctx context.Context, event models.SlackEvent) error
 }
 
-// Client represents the Slack client, encapsulating API interaction and event listening.
 type Client struct {
 	api          *slack.Client
 	socketClient *socketmode.Client
@@ -41,9 +37,7 @@ type Client struct {
 	retryDelay   time.Duration
 }
 
-// NewClient creates and returns a new Slack Client instance.
 func NewClient(botToken, appToken string, handler EventHandler, retryCount int, retryDelay time.Duration) *Client {
-	// Create a standard logger instance for slack-go internal logs.
 	slackGoLogger := log.New(log.Writer(), "[slack-go] ", log.LstdFlags)
 
 	api := slack.New(
@@ -53,7 +47,6 @@ func NewClient(botToken, appToken string, handler EventHandler, retryCount int, 
 		slack.OptionHTTPClient(NewHTTPClientWithTracing()),
 	)
 
-	// ✅ CORRECT: Pass the app token directly to socketmode.New()
 	socketClient := socketmode.New(
 		api,
 		socketmode.OptionLog(slackGoLogger),
@@ -63,7 +56,7 @@ func NewClient(botToken, appToken string, handler EventHandler, retryCount int, 
 		api:          api,
 		socketClient: socketClient,
 		eventHandler: handler,
-		botUserID:    "", // Will be set after AuthTest
+		botUserID:    "",
 		retryCount:   retryCount,
 		retryDelay:   retryDelay,
 	}
@@ -88,9 +81,7 @@ func (c *Client) listenForEvents(ctx context.Context) {
 
 	for evt := range c.socketClient.Events {
 		eventCtx, span := tracer.Start(ctx, "SlackEventProcessing",
-			trace.WithAttributes(
-				attribute.String("slack.event_type", string(evt.Type)),
-			),
+			trace.WithAttributes(attribute.String("slack.event_type", string(evt.Type))),
 		)
 
 		switch evt.Type {
@@ -104,7 +95,6 @@ func (c *Client) listenForEvents(ctx context.Context) {
 			slog.WarnContext(eventCtx, "Disconnected from Slack Socket Mode.")
 		case socketmode.EventTypeEventsAPI:
 			c.socketClient.Ack(*evt.Request)
-
 			eventsAPIEvent, ok := evt.Data.(slackevents.EventsAPIEvent)
 			if !ok {
 				slog.ErrorContext(eventCtx, "Could not parse EventsAPIEvent", "raw_data", evt.Data)
@@ -113,19 +103,13 @@ func (c *Client) listenForEvents(ctx context.Context) {
 				span.End()
 				continue
 			}
-
 			eventCtx, eventSpan := tracer.Start(eventCtx, "EventsAPIEvent",
-				trace.WithAttributes(
-					attribute.String("slack.events_api.type", eventsAPIEvent.Type),
-				),
+				trace.WithAttributes(attribute.String("slack.events_api.type", eventsAPIEvent.Type)),
 			)
-
 			c.handleEventsAPIEvent(eventCtx, eventsAPIEvent)
 			eventSpan.End()
-
 		case socketmode.EventTypeInteractive:
 			c.socketClient.Ack(*evt.Request)
-
 		default:
 			slog.InfoContext(eventCtx, "Unhandled event type", "event_type", evt.Type, "data", evt.Data)
 		}
@@ -142,7 +126,6 @@ func (c *Client) handleEventsAPIEvent(ctx context.Context, eventsAPIEvent slacke
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
 			slog.InfoContext(ctx, "Received App Mention Event", "text", ev.Text, "user", ev.User, "channel", ev.Channel)
-
 			mentionCtx, mentionSpan := tracer.Start(ctx, "HandleAppMentionEvent",
 				trace.WithAttributes(
 					attribute.String("slack.event.type", "app_mention"),
@@ -163,17 +146,14 @@ func (c *Client) handleEventsAPIEvent(ctx context.Context, eventsAPIEvent slacke
 				Ts:      ev.TimeStamp,
 			}
 
-			err := c.eventHandler.HandleAppMention(mentionCtx, slackEvent)
-			if err != nil {
+			if err := c.eventHandler.HandleAppMention(mentionCtx, slackEvent); err != nil {
 				slog.ErrorContext(mentionCtx, "Error handling app mention event", "error", err, "user", ev.User, "channel", ev.Channel)
 				mentionSpan.RecordError(err)
 				mentionSpan.SetStatus(codes.Error, "Error handling app mention")
-				c.SendMessage(ctx, ev.Channel, fmt.Sprintf("Oops! Something went wrong while processing your request: %v", err))
+				c.SendMessage(ctx, ev.Channel, fmt.Sprintf("Oops! Something went wrong: %v", err))
 			} else {
 				mentionSpan.SetStatus(codes.Ok, "App mention handled successfully")
 			}
-		case *slackevents.MessageEvent:
-		// ... (omitted for brevity, keep as is from previous code)
 		default:
 			slog.InfoContext(ctx, "Unhandled inner event type", "type", innerEvent.Type)
 		}
@@ -182,9 +162,7 @@ func (c *Client) handleEventsAPIEvent(ctx context.Context, eventsAPIEvent slacke
 	}
 }
 
-// SendMessage sends a plain text message to a Slack channel.
-// It includes retry logic.
-func (c *Client) SendMessage(ctx context.Context, channelID, text string) (timestamp string, err error) {
+func (c *Client) SendMessage(ctx context.Context, channelID, text string) (string, error) {
 	tracer := otel.Tracer(tracerName)
 	ctx, span := tracer.Start(ctx, "SendMessageToSlack",
 		trace.WithAttributes(
@@ -192,43 +170,32 @@ func (c *Client) SendMessage(ctx context.Context, channelID, text string) (times
 			attribute.Int("slack.message_length", len(text)),
 		),
 	)
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-		} else {
-			span.SetStatus(codes.Ok, "success")
-		}
-		span.End()
-	}()
+	defer span.End()
 
-	slog.InfoContext(ctx, "Attempting to send message to Slack", "channel", channelID, "text", text)
+	slog.InfoContext(ctx, "Attempting to send message", "channel", channelID, "text", text)
 
 	for i := 0; i <= c.retryCount; i++ {
 		_, ts, err := c.api.PostMessageContext(ctx, channelID, slack.MsgOptionText(text, false))
 		if err == nil {
-			slog.InfoContext(ctx, "Message sent to Slack successfully", "channel", channelID, "timestamp", ts)
+			slog.InfoContext(ctx, "Message sent successfully", "channel", channelID, "timestamp", ts)
+			span.SetStatus(codes.Ok, "success")
 			return ts, nil
 		}
-
-		slog.ErrorContext(ctx, "Failed to send message to Slack", "error", err, "attempt", i+1)
+		slog.ErrorContext(ctx, "Failed to send message", "error", err, "attempt", i+1)
 		span.AddEvent("SlackSendMessageAttemptFailed", trace.WithAttributes(
 			attribute.Int("attempt", i+1),
 			attribute.String("error", err.Error()),
-		),
-		)
-
-		if i < c.retryCount {
-			time.Sleep(c.retryDelay)
-		}
+		))
+		time.Sleep(c.retryDelay)
 	}
 
-	return "", fmt.Errorf("failed to send message to Slack after %d retries: %w", c.retryCount, err)
+	err := fmt.Errorf("failed to send message after %d retries", c.retryCount)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return "", err
 }
 
-// UpdateMessage updates an existing message in a Slack channel.
-// This is useful for simulating streaming responses.
-func (c *Client) UpdateMessage(ctx context.Context, channelID, timestamp, text string) (err error) {
+func (c *Client) UpdateMessage(ctx context.Context, channelID, timestamp, text string) error {
 	tracer := otel.Tracer(tracerName)
 	ctx, span := tracer.Start(ctx, "UpdateMessageInSlack",
 		trace.WithAttributes(
@@ -236,40 +203,31 @@ func (c *Client) UpdateMessage(ctx context.Context, channelID, timestamp, text s
 			attribute.String("slack.message_ts", timestamp),
 		),
 	)
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-		} else {
-			span.SetStatus(codes.Ok, "success")
-		}
-		span.End()
-	}()
+	defer span.End()
 
-	slog.InfoContext(ctx, "Attempting to update message in Slack", "channel", channelID, "timestamp", timestamp, "text", text)
+	slog.InfoContext(ctx, "Attempting to update message", "channel", channelID, "timestamp", timestamp, "text", text)
 
 	for i := 0; i <= c.retryCount; i++ {
 		_, _, _, err := c.api.UpdateMessageContext(ctx, channelID, timestamp, slack.MsgOptionText(text, false))
 		if err == nil {
-			slog.InfoContext(ctx, "Message updated in Slack successfully", "channel", channelID, "timestamp", timestamp)
+			slog.InfoContext(ctx, "Message updated successfully", "channel", channelID, "timestamp", timestamp)
+			span.SetStatus(codes.Ok, "success")
 			return nil
 		}
-
-		slog.ErrorContext(ctx, "Failed to update message in Slack", "error", err, "attempt", i+1)
+		slog.ErrorContext(ctx, "Failed to update message", "error", err, "attempt", i+1)
 		span.AddEvent("SlackUpdateMessageAttemptFailed", trace.WithAttributes(
 			attribute.Int("attempt", i+1),
 			attribute.String("error", err.Error()),
 		))
-
-		if i < c.retryCount {
-			time.Sleep(c.retryDelay)
-		}
+		time.Sleep(c.retryDelay)
 	}
 
-	return fmt.Errorf("failed to update message after %d retries: %w", c.retryCount, err)
+	err := fmt.Errorf("failed to update message after %d retries", c.retryCount)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return err
 }
 
-// NewHTTPClientWithTracing returns an *http.Client that is instrumented with OpenTelemetry.
 func NewHTTPClientWithTracing() *http.Client {
 	return &http.Client{
 		Transport: otelhttp.NewTransport(http.DefaultTransport,

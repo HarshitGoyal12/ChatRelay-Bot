@@ -1,6 +1,3 @@
-// internal/chatbackend/client.go
-// This file defines the client for interacting with the mock chat backend API.
-
 package chatbackend
 
 import (
@@ -15,22 +12,18 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes" // ✅ Correct OpenTelemetry status codes
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"chatrelay-bot/pkg/models" // Our custom models package
+	"chatrelay-bot/pkg/models"
 )
 
 const tracerName = "chatrelay/internal/chatbackend"
 
-// Client defines the interface for interacting with the chat backend.
 type Client interface {
-	// SendChatRequest sends a chat query to the backend and returns the response.
-	// This implementation focuses on a complete JSON response.
 	SendChatRequest(ctx context.Context, req models.ChatRequest) (models.ChatResponse, error)
 }
 
-// httpClient implements the Client interface using http.Client.
 type httpClient struct {
 	baseURL    string
 	httpClient *http.Client
@@ -38,7 +31,6 @@ type httpClient struct {
 	retryDelay time.Duration
 }
 
-// NewClient creates and returns a new Client instance.
 func NewClient(baseURL string, timeout time.Duration, retryCount int, retryDelay time.Duration) Client {
 	return &httpClient{
 		baseURL: baseURL,
@@ -50,7 +42,6 @@ func NewClient(baseURL string, timeout time.Duration, retryCount int, retryDelay
 	}
 }
 
-// SendChatRequest sends a chat query to the backend and returns the response.
 func (c *httpClient) SendChatRequest(ctx context.Context, req models.ChatRequest) (res models.ChatResponse, err error) {
 	tracer := otel.Tracer(tracerName)
 	ctx, span := tracer.Start(ctx, "SendChatRequest",
@@ -62,7 +53,7 @@ func (c *httpClient) SendChatRequest(ctx context.Context, req models.ChatRequest
 	defer func() {
 		if err != nil {
 			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error()) // ✅ Correct usage
+			span.SetStatus(codes.Error, err.Error())
 		} else {
 			span.SetStatus(codes.Ok, "Chat request successful")
 		}
@@ -146,7 +137,7 @@ func (c *httpClient) SendChatRequest(ctx context.Context, req models.ChatRequest
 		}
 
 		slog.InfoContext(attemptCtx, "Successfully received response from chat backend", "response_text", res.FullResponse)
-		attemptSpan.SetStatus(codes.Ok, "Request succeeded") // ✅ Optional: mark attempt span success
+		attemptSpan.SetStatus(codes.Ok, "Request succeeded")
 		attemptSpan.End()
 		return res, nil
 	}

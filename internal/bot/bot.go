@@ -11,7 +11,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"   // ✅ Correct package
+	"go.opentelemetry.io/otel/codes"   
 	"go.opentelemetry.io/otel/trace"
 
 	"chatrelay-bot/internal/chatbackend"
@@ -64,7 +64,7 @@ func (b *ChatRelayBot) HandleAppMention(ctx context.Context, event models.SlackE
 	if b.slackClient == nil {
 		slog.ErrorContext(ctx, "Slack client is nil, cannot send messages.")
 		span.RecordError(fmt.Errorf("slack client not initialized"))
-		span.SetStatus(codes.Error, "Slack client not initialized") // ✅ Correct usage
+		span.SetStatus(codes.Error, "Slack client not initialized") 
 		return fmt.Errorf("slack client not initialized")
 	}
 
@@ -130,8 +130,7 @@ func (b *ChatRelayBot) HandleAppMention(ctx context.Context, event models.SlackE
 	}
 
 	slog.InfoContext(ctx, "Successfully relayed response to Slack", "user", event.User)
-	span.SetStatus(codes.Ok, "Response relayed successfully") // ✅ Correct usage
-
+	span.SetStatus(codes.Ok, "Response relayed successfully")
 	b.mu.Lock()
 	delete(b.ongoingConversations, conversationKey)
 	b.mu.Unlock()

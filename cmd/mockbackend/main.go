@@ -1,4 +1,3 @@
-// cmd/mockbackend/main.go
 package main
 
 import (

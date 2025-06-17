@@ -1,4 +1,3 @@
-// cmd/chatrelay/main.go
 package main
 
 import (
@@ -16,18 +15,13 @@ import (
 )
 
 func main() {
-	// 1. Load Configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		slog.Error("Failed to load application configuration", "error", err)
 		os.Exit(1)
 	}
-
-	// 2. Setup Context for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-
-	// 3. Initialize OpenTelemetry
 	if err := telemetry.InitOpenTelemetry(ctx, cfg); err != nil {
 		slog.Error("Failed to initialize OpenTelemetry", "error", err)
 		os.Exit(1)
@@ -39,15 +33,12 @@ func main() {
 	}()
 
 	slog.Info("ChatRelay Bot is starting...")
-
-	// 4. Initialize Chat Backend Client
 	backendClient := chatbackend.NewClient(cfg.ChatBackendURL, cfg.RequestTimeout, cfg.BackendAPIRetryCount, cfg.BackendAPIRetryDelay)
 	slog.Info("Chat backend client initialized", "url", cfg.ChatBackendURL)
 
-	// 5. Initialize ChatRelay Bot (core logic)
 	chatRelayBot := bot.NewChatRelayBot(nil, backendClient)
 
-	// 6. Initialize Slack Client
+
 	slackClient := slack.NewClient(cfg.SlackBotToken, cfg.SlackAppToken, chatRelayBot, cfg.SlackAPIRetryCount, cfg.SlackAPIRetryDelay)
 	chatRelayBot.SetSlackClient(slackClient)
 
@@ -56,7 +47,7 @@ func main() {
 		"app_token_prefix", cfg.SlackAppToken[:5]+"...",
 	)
 
-	// 7. Start Bot
+
 	slog.Info("Connecting to Slack and starting event listener...")
 	err = chatRelayBot.StartBot(ctx)
 	if err != nil {
