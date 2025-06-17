@@ -156,7 +156,7 @@ After creating the Slack App, extract the required tokens to enable API access a
 ```env
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_APP_TOKEN=xapp-your-app-token
-
+``` 
 
 ## ⚙️ Configuration Overview
 
