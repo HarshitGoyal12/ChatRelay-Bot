@@ -239,6 +239,57 @@ The mock backend provides a chat API endpoint for development and testing.
 cd /path/to/chatrelay-bot
 go run ./cmd/mockbackend
 
+```
+Expected output:
+```bash
+Mock backend listening on :8081
+```
+The mock backend exposes:
+
+HTTP server on port specified by MOCK_BACKEND_PORT (default: 8081)
+Endpoint: POST /v1/chat/stream for chat requests
+
 
 # Step 2: Start the ChatRelay Bot
 In a separate terminal, start the main ChatRelay application:
+
+
+```bash
+cd /path/to/chatrelay-bot
+go run ./cmd/chatrelay
+```
+
+Expected output:
+```bash
+Expected output:ChatRelay bot starting...
+Connecting to Slack Socket Mode...
+Connected to Slack. Bot is ready to receive events.
+```
+
+
+### 🧠 The bot will:
+
+- Load configuration from `.env` file and environment variables  
+- Initialize OpenTelemetry telemetry collection  
+- Establish Socket Mode connection to Slack  
+- Begin listening for `app_mention` events  
+
+
+# Verification and Testing
+
+## Basic Functionality Test
+
+1.Invite Bot to Channel: In your Slack workspace, invite the bot to a channel
+```bash
+/invite @ChatRelay(your bot name)
+```
+
+2.Test Bot Response: Mention the bot with a query:
+```bash
+ChatRelay Tell me about Golang concurrency
+```
+### ✅ Expected Behavior
+
+- Bot sends initial **"Thinking..."** message  
+- Message updates progressively with response chunks  
+- Final complete response is displayed  
