@@ -231,3 +231,14 @@ The system performs validation during the configuration loading process to ensur
 
 Once the prerequisites are met and the environment is configured, you can start the ChatRelay Bot locally:
 
+### ✅ Step 1: Start the Mock Backend
+
+The mock backend provides a chat API endpoint for development and testing.
+
+```bash
+cd /path/to/chatrelay-bot
+go run ./cmd/mockbackend
+
+
+# Step 2: Start the ChatRelay Bot
+In a separate terminal, start the main ChatRelay application:
